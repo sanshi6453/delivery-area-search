@@ -29,8 +29,8 @@
     const q=norm(query),mk=norm(r.municipality),mr=norm(r.municipalityReading),pk=norm(r.prefecture),tk=norm(r.town),tr=norm(r.townReading),sk=norm(r.sourceText),full=norm(r.prefecture+r.municipality+r.town),short=norm(r.municipality+r.town),read=norm(r.municipalityReading+r.townReading);
     if(selected){const [p,m]=selected.split("|");if(r.prefecture!==p||r.municipality!==m)return -1}
     if(!q)return selected&&r.matchType==="municipality"?60:-1;
-    const district=r.municipality.match(/^(.+?郡)/)?.[1]??"";
-    let s=selected?25:0,hasCity=q.includes(mk)||q.includes(mr)||q.includes(norm(r.municipality.replace(/^.*郡/,"")))||(district&&q.includes(norm(district)));if(hasCity)s+=35;if(q.includes(pk))s+=4;
+    const district=r.municipality.match(/^(.+?郡)/)?.[1]??"",shortMunicipality=r.municipality.replace(/^.*郡/,"");
+    let s=selected?25:0,hasCity=q.includes(mk)||q.includes(mr)||(shortMunicipality&&q.includes(norm(shortMunicipality)))||(district&&q.includes(norm(district)));if(hasCity)s+=35;if(q.includes(pk))s+=4;
     if(r.matchType==="municipality")return selected||hasCity?s+20:-1;
     if(!tk)return -1;
     if(q===full||q===short)s+=120;
