@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#176447">
+  <meta name="description" content="住所からスーパーサンシ宅配サービスの配達店舗を検索します。">
+  <title>スーパーサンシ 配達店舗検索</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top"><div><small>SUPER SANSHI</small><p>スーパーサンシ宅配サービス</p></div></header>
+  <main>
+    <section class="intro">
+      <span>DELIVERY AREA SEARCH</span>
+      <h1>配達店舗検索</h1>
+      <p>お住まいの住所から、担当する配達店舗を検索できます。</p>
+    </section>
+
+    <section class="search-box" aria-label="住所検索">
+      <form id="search-form">
+        <label for="municipality">市町村を選ぶ <em>任意</em></label>
+        <div class="select-wrap"><select id="municipality"><option value="">市町村を選択しない</option></select></div>
+        <div class="or"><span>または</span></div>
+        <label for="address">住所・町名を入力</label>
+        <input id="address" type="search" autocomplete="off" enterkeyhint="search" placeholder="例：四日市市桜町、川島町、かわしまちょう">
+        <p class="help">市町村を選んだ場合は、町名だけでも検索できます。</p>
+        <button type="submit">検索する</button>
+      </form>
+      <p id="data-status" class="data-status" role="status">配達エリア情報を読み込んでいます…</p>
+    </section>
+
+    <section id="results" class="results" aria-live="polite" hidden>
+      <div class="results-title"><h2>検索結果</h2><span id="result-count"></span></div>
+      <div id="result-list" class="result-list"></div>
+    </section>
+
+    <aside><h2>検索について</h2><p>番地や建物名は入力しなくても検索できます。担当店舗が複数表示された地域は、店舗への確認が必要です。</p></aside>
+  </main>
+  <footer>スーパーサンシ宅配サービス 配達店舗検索</footer>
+  <script src="config.js"></script>
+  <script src="fallback-data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
