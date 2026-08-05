@@ -20,8 +20,8 @@
     areas=source.map(row).map(applyBusinessRules).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r});
     const loadedIds=new Set(areas.map(r=>String(r.id)));extraRules.forEach(r=>{if(!loadedIds.has(String(r.id)))areas.push(r)});areas=areas.filter(r=>r.enabled&&r.municipality);
     postalMaster=(window.POSTAL_CODE_MASTER??[]).map(p=>({...p,postalCode:String(p.postalCode??"").replace(/\D/g,"")}));
-    const cities=new Map();areas.forEach(r=>cities.set(`${r.prefecture}|${r.municipality}`,`${r.prefecture} ${r.municipality}`));
-    [...cities].sort((a,b)=>a[1].localeCompare(b[1],"ja")).forEach(([value,label])=>{const o=document.createElement("option");o.value=value;o.textContent=label;citySelect.appendChild(o)});
+    const cities=new Map();areas.forEach(r=>cities.set(`${r.prefecture}|${r.municipality}`,{prefecture:r.prefecture,municipality:r.municipality}));
+    [...cities].sort((a,b)=>{const ap=a[1].prefecture==="三重県"?0:1,bp=b[1].prefecture==="三重県"?0:1;return ap-bp||b[1].municipality.localeCompare(a[1].municipality,"ja")}).forEach(([value,item])=>{const o=document.createElement("option");o.value=value;o.textContent=item.prefecture==="三重県"?item.municipality:`${item.prefecture} ${item.municipality}`;citySelect.appendChild(o)});
     button.disabled=!areas.length;status.textContent=areas.length?`${areas.length}件の配達エリア情報を読み込みました。`:"配達エリア情報を読み込めませんでした。";status.className=areas.length?"data-status ready":"data-status error";
   }
 
