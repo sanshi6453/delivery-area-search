@@ -26,7 +26,7 @@
     const q=norm(query),mk=norm(r.municipality),mr=norm(r.municipalityReading),pk=norm(r.prefecture),tk=norm(r.town),tr=norm(r.townReading),sk=norm(r.sourceText),full=norm(r.prefecture+r.municipality+r.town),short=norm(r.municipality+r.town),read=norm(r.municipalityReading+r.townReading);
     if(selected){const [p,m]=selected.split("|");if(r.prefecture!==p||r.municipality!==m)return -1}
     if(!q)return selected&&r.matchType==="municipality"?60:-1;
-    let s=selected?25:0,hasCity=q.includes(mk)||q.includes(mr);if(hasCity)s+=35;if(q.includes(pk))s+=4;
+    let s=selected?25:0,hasCity=q.includes(mk)||q.includes(mr)||q.includes(norm(r.municipality.replace(/^.*郡/,"")));if(hasCity)s+=35;if(q.includes(pk))s+=4;
     if(r.matchType==="municipality")return hasCity?s+20:-1;
     if(!tk)return -1;
     if(q===full||q===short)s+=120;
@@ -43,12 +43,19 @@
   function search(query,selected){
     const postal=String(query??"").replace(/\D/g,"");
     if(postal.length===7)return searchPostal(postal,selected);
+    const place=identifyPlace(query,selected);
     let found=areas.map(r=>({r,s:score(r,query,selected)})).filter(x=>x.s>=0);
     const specific=new Set(found.filter(x=>x.r.matchType!=="municipality").map(x=>`${x.r.prefecture}|${x.r.municipality}`));
     found=found.filter(x=>x.r.matchType!=="municipality"||!specific.has(`${x.r.prefecture}|${x.r.municipality}`));
     const groups=new Map();
     found.forEach(({r,s})=>{const key=[r.prefecture,r.municipality,r.town,r.status].join("|");if(!groups.has(key))groups.set(key,{...r,score:s,stores:new Set(),notes:new Set(),days:new Set(),postalCodes:new Set()});const g=groups.get(key);if(r.store)g.stores.add(r.store);if(r.note)g.notes.add(r.note.replace(/ハンター店/g,"鈴鹿ハンター店").replace(/生桑店/g,"いくわ店"));if(r.deliveryDay)g.days.add(r.deliveryDay);r.postalCodes.forEach(p=>g.postalCodes.add(p));g.score=Math.max(g.score,s)});
-    return [...groups.values()].sort((a,b)=>b.score-a.score||a.municipality.localeCompare(b.municipality,"ja")||a.town.localeCompare(b.town,"ja")).slice(0,30);
+    return [...groups.values()].map(g=>{if(place&&g.prefecture===place.prefecture&&g.municipality===place.municipality){g.town=place.town;g.townReading=hira(place.townReading);g.postalCodes=new Set(postalMaster.filter(p=>p.prefecture===place.prefecture&&p.municipality===place.municipality&&p.town===place.town).map(p=>p.postalCode))}return g}).sort((a,b)=>b.score-a.score||a.municipality.localeCompare(b.municipality,"ja")||a.town.localeCompare(b.town,"ja")).slice(0,30);
+  }
+
+  function identifyPlace(query,selected){
+    const q=norm(query);if(!q)return null;
+    const candidates=postalMaster.filter(p=>!selected||`${p.prefecture}|${p.municipality}`===selected).filter(p=>q.includes(norm(p.municipality+p.town))||q.includes(norm(p.municipality.replace(/^.*郡/,"")+p.town))||(selected&&q.includes(norm(p.town))));
+    return candidates.sort((a,b)=>norm(b.town).length-norm(a.town).length)[0]??null;
   }
 
   function searchPostal(postal,selected){
