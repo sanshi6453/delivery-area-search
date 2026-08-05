@@ -4,19 +4,21 @@
   const form=$("search-form"), citySelect=$("municipality"), input=$("address"), status=$("data-status"), results=$("results"), count=$("result-count"), list=$("result-list"), button=form.querySelector("button");
   let areas=[],postalMaster=[];
   const hira=(v)=>String(v??"").replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
-  const norm=(v)=>hira(String(v??"").normalize("NFKC")).replace(/[\s　・ー―‐-]/g,"").replace(/[ヶケヵカ]/g,"か").replace(/[曾曽]/g,"曽").replace(/[﨑崎]/g,"崎").replace(/[釆采]/g,"采").toLowerCase();
+  const norm=(v)=>hira(String(v??"").normalize("NFKC")).replace(/[\s　・ー―‐-]/g,"").replace(/[ヶケヵカ]/g,"か").replace(/[曾曽]/g,"曽").replace(/木曽崎/g,"木曽岬").replace(/[﨑崎]/g,"崎").replace(/[釆采]/g,"采").toLowerCase();
   const esc=(v)=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   const row=(r)=>({
     id:r.id,prefecture:String(r.prefecture??"").trim(),municipality:String(r.municipality??"").trim(),municipalityReading:String(r.municipalityReading??"").trim(),town:String(r.town??"").trim(),townReading:String(r.townReading??"").trim(),postalCodes:Array.isArray(r.postalCodes)?r.postalCodes.map(v=>String(v).replace(/\D/g,"")).filter(v=>v.length===7):String(r.postalCode??"").split(/[,、／/\s]+/).map(v=>v.replace(/\D/g,"")).filter(v=>v.length===7),store:String(r.store??"").trim(),status:String(r.status??"配達可能").trim(),deliveryDay:String(r.deliveryDay??"").trim(),matchType:String(r.matchType??"exact").trim(),note:String(r.note??"").trim(),sourceText:String(r.sourceText??"").trim(),enabled:r.enabled!==false&&String(r.enabled).toLowerCase()!=="false"
   });
-  const applyBusinessRules=r=>{if(r.municipality==="桑名市"&&r.matchType==="municipality")r.deliveryDay="";if(r.municipality==="鈴鹿市"&&r.town==="冨家")r.enabled=false;return r};
+  const applyBusinessRules=r=>{if(r.store==="桑名店"&&["桑名市","いなべ市","員弁郡東員町"].includes(r.municipality))r.deliveryDay="";if(r.municipality==="鈴鹿市"&&r.town==="冨家")r.enabled=false;return r};
 
   async function load(){
     let source=null,url=window.DELIVERY_AREA_CONFIG?.dataUrl?.trim();
     if(url){try{const res=await fetch(`${url}${url.includes("?")?"&":"?"}v=${Date.now()}`,{cache:"no-store",redirect:"follow"});if(!res.ok)throw Error();const payload=await res.json();source=Array.isArray(payload)?payload:payload.rows}catch(e){console.warn("スプレッドシートから読み込めないため初期データを使用します。")}}
-    const fallbackRows=(window.DELIVERY_AREA_FALLBACK??[]).map(row).map(applyBusinessRules),fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
+    const extraRules=[row({id:"aichi-amagun",prefecture:"愛知県",municipality:"海部郡",municipalityReading:"あまぐん",town:"",townReading:"",postalCodes:[],store:"桑名店",status:"配達可能",deliveryDay:"水曜日のみ",matchType:"municipality",note:"",enabled:true,sourceText:"愛知県海部郡"})];
+    const fallbackRows=[...(window.DELIVERY_AREA_FALLBACK??[]).map(row).map(applyBusinessRules),...extraRules],fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
     if(!Array.isArray(source))source=fallbackRows;
-    areas=source.map(row).map(applyBusinessRules).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r}).filter(r=>r.enabled&&r.municipality);
+    areas=source.map(row).map(applyBusinessRules).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r});
+    const loadedIds=new Set(areas.map(r=>String(r.id)));extraRules.forEach(r=>{if(!loadedIds.has(String(r.id)))areas.push(r)});areas=areas.filter(r=>r.enabled&&r.municipality);
     postalMaster=(window.POSTAL_CODE_MASTER??[]).map(p=>({...p,postalCode:String(p.postalCode??"").replace(/\D/g,"")}));
     const cities=new Map();areas.forEach(r=>cities.set(`${r.prefecture}|${r.municipality}`,`${r.prefecture} ${r.municipality}`));
     [...cities].sort((a,b)=>a[1].localeCompare(b[1],"ja")).forEach(([value,label])=>{const o=document.createElement("option");o.value=value;o.textContent=label;citySelect.appendChild(o)});
@@ -27,7 +29,8 @@
     const q=norm(query),mk=norm(r.municipality),mr=norm(r.municipalityReading),pk=norm(r.prefecture),tk=norm(r.town),tr=norm(r.townReading),sk=norm(r.sourceText),full=norm(r.prefecture+r.municipality+r.town),short=norm(r.municipality+r.town),read=norm(r.municipalityReading+r.townReading);
     if(selected){const [p,m]=selected.split("|");if(r.prefecture!==p||r.municipality!==m)return -1}
     if(!q)return selected&&r.matchType==="municipality"?60:-1;
-    let s=selected?25:0,hasCity=q.includes(mk)||q.includes(mr)||q.includes(norm(r.municipality.replace(/^.*郡/,"")));if(hasCity)s+=35;if(q.includes(pk))s+=4;
+    const district=r.municipality.match(/^(.+?郡)/)?.[1]??"";
+    let s=selected?25:0,hasCity=q.includes(mk)||q.includes(mr)||q.includes(norm(r.municipality.replace(/^.*郡/,"")))||(district&&q.includes(norm(district)));if(hasCity)s+=35;if(q.includes(pk))s+=4;
     if(r.matchType==="municipality")return selected||hasCity?s+20:-1;
     if(!tk)return -1;
     if(q===full||q===short)s+=120;
@@ -46,6 +49,8 @@
     if(postal.length===7)return searchPostal(postal,selected);
     const place=identifyPlace(query,selected);
     let found=areas.map(r=>({r,s:score(r,query,selected)})).filter(x=>x.s>=0);
+    const q=norm(query),exactMunicipalities=new Set(found.filter(x=>x.r.matchType==="municipality"&&(q===norm(x.r.municipality)||q===norm(x.r.prefecture+x.r.municipality))).map(x=>`${x.r.prefecture}|${x.r.municipality}`));
+    if(exactMunicipalities.size)found=found.filter(x=>exactMunicipalities.has(`${x.r.prefecture}|${x.r.municipality}`));
     const specific=new Set(found.filter(x=>x.r.matchType!=="municipality").map(x=>`${x.r.prefecture}|${x.r.municipality}`));
     found=found.filter(x=>x.r.matchType!=="municipality"||!specific.has(`${x.r.prefecture}|${x.r.municipality}`));
     const groups=new Map();
