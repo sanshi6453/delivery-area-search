@@ -7,6 +7,7 @@
   <meta name="description" content="住所からスーパーサンシ宅配サービスの配達店舗を検索します。">
   <title>スーパーサンシ 配達店舗検索</title>
   <link rel="stylesheet" href="style.css">
+  <style>.postal-code{display:flex;flex-wrap:wrap;gap:.35em .7em;margin:7px 0 0;color:var(--gd);font-size:.9rem;font-weight:700}.postal-code span{color:var(--muted);font-size:.78rem}</style>
 </head>
 <body>
   <header class="top"><div><small>SUPER SANSHI</small><p>スーパーサンシ宅配サービス</p></div></header>
@@ -22,9 +23,9 @@
         <label for="municipality">市町村を選ぶ <em>任意</em></label>
         <div class="select-wrap"><select id="municipality"><option value="">市町村を選択しない</option></select></div>
         <div class="or"><span>または</span></div>
-        <label for="address">住所・町名を入力</label>
-        <input id="address" type="search" autocomplete="off" enterkeyhint="search" placeholder="例：四日市市桜町、川島町、かわしまちょう">
-        <p class="help">市町村を選んだ場合は、町名だけでも検索できます。</p>
+        <label for="address">住所・町名・郵便番号を入力</label>
+        <input id="address" type="search" inputmode="search" autocomplete="postal-code" enterkeyhint="search" placeholder="例：四日市市桜町、川島町、512-1211">
+        <p class="help">郵便番号は、〒・ハイフンの有無にかかわらず検索できます。</p>
         <button type="submit">検索する</button>
       </form>
       <p id="data-status" class="data-status" role="status">配達エリア情報を読み込んでいます…</p>
@@ -35,7 +36,7 @@
       <div id="result-list" class="result-list"></div>
     </section>
 
-    <aside><h2>検索について</h2><p>番地や建物名は入力しなくても検索できます。担当店舗が複数表示された地域は、店舗への確認が必要です。</p></aside>
+    <aside><h2>検索について</h2><p>市町村を選んだ場合は町名だけでも検索できます。郵便番号は7桁で入力してください。担当店舗が複数表示された地域は、店舗への確認が必要です。</p></aside>
   </main>
   <footer>スーパーサンシ宅配サービス 配達店舗検索</footer>
   <script src="config.js"></script>

@@ -2,19 +2,21 @@
   "use strict";
   const $=(id)=>document.getElementById(id);
   const form=$("search-form"), citySelect=$("municipality"), input=$("address"), status=$("data-status"), results=$("results"), count=$("result-count"), list=$("result-list"), button=form.querySelector("button");
-  let areas=[];
+  let areas=[],postalMaster=[];
   const hira=(v)=>String(v??"").replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
   const norm=(v)=>hira(String(v??"").normalize("NFKC")).replace(/[\s　・ー―‐-]/g,"").replace(/[ヶケヵカ]/g,"か").replace(/[曾曽]/g,"曽").replace(/[﨑崎]/g,"崎").replace(/[釆采]/g,"采").toLowerCase();
   const esc=(v)=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
   const row=(r)=>({
-    id:r.id,prefecture:String(r.prefecture??"").trim(),municipality:String(r.municipality??"").trim(),municipalityReading:String(r.municipalityReading??"").trim(),town:String(r.town??"").trim(),townReading:String(r.townReading??"").trim(),store:String(r.store??"").trim(),status:String(r.status??"配達可能").trim(),deliveryDay:String(r.deliveryDay??"").trim(),matchType:String(r.matchType??"exact").trim(),note:String(r.note??"").trim(),sourceText:String(r.sourceText??"").trim(),enabled:r.enabled!==false&&String(r.enabled).toLowerCase()!=="false"
+    id:r.id,prefecture:String(r.prefecture??"").trim(),municipality:String(r.municipality??"").trim(),municipalityReading:String(r.municipalityReading??"").trim(),town:String(r.town??"").trim(),townReading:String(r.townReading??"").trim(),postalCodes:Array.isArray(r.postalCodes)?r.postalCodes.map(v=>String(v).replace(/\D/g,"")).filter(v=>v.length===7):String(r.postalCode??"").split(/[,、／/\s]+/).map(v=>v.replace(/\D/g,"")).filter(v=>v.length===7),store:String(r.store??"").trim(),status:String(r.status??"配達可能").trim(),deliveryDay:String(r.deliveryDay??"").trim(),matchType:String(r.matchType??"exact").trim(),note:String(r.note??"").trim(),sourceText:String(r.sourceText??"").trim(),enabled:r.enabled!==false&&String(r.enabled).toLowerCase()!=="false"
   });
 
   async function load(){
     let source=null,url=window.DELIVERY_AREA_CONFIG?.dataUrl?.trim();
     if(url){try{const res=await fetch(`${url}${url.includes("?")?"&":"?"}v=${Date.now()}`,{cache:"no-store",redirect:"follow"});if(!res.ok)throw Error();const payload=await res.json();source=Array.isArray(payload)?payload:payload.rows}catch(e){console.warn("スプレッドシートから読み込めないため初期データを使用します。")}}
-    if(!Array.isArray(source))source=window.DELIVERY_AREA_FALLBACK??[];
-    areas=source.map(row).filter(r=>r.enabled&&r.municipality);
+    const fallbackRows=(window.DELIVERY_AREA_FALLBACK??[]).map(row),fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
+    if(!Array.isArray(source))source=fallbackRows;
+    areas=source.map(row).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r}).filter(r=>r.enabled&&r.municipality);
+    postalMaster=(window.POSTAL_CODE_MASTER??[]).map(p=>({...p,postalCode:String(p.postalCode??"").replace(/\D/g,"")}));
     const cities=new Map();areas.forEach(r=>cities.set(`${r.prefecture}|${r.municipality}`,`${r.prefecture} ${r.municipality}`));
     [...cities].sort((a,b)=>a[1].localeCompare(b[1],"ja")).forEach(([value,label])=>{const o=document.createElement("option");o.value=value;o.textContent=label;citySelect.appendChild(o)});
     button.disabled=!areas.length;status.textContent=areas.length?`${areas.length}件の配達エリア情報を読み込みました。`:"配達エリア情報を読み込めませんでした。";status.className=areas.length?"data-status ready":"data-status error";
@@ -39,13 +41,26 @@
   }
 
   function search(query,selected){
+    const postal=String(query??"").replace(/\D/g,"");
+    if(postal.length===7)return searchPostal(postal,selected);
     let found=areas.map(r=>({r,s:score(r,query,selected)})).filter(x=>x.s>=0);
     const specific=new Set(found.filter(x=>x.r.matchType!=="municipality").map(x=>`${x.r.prefecture}|${x.r.municipality}`));
     found=found.filter(x=>x.r.matchType!=="municipality"||!specific.has(`${x.r.prefecture}|${x.r.municipality}`));
     const groups=new Map();
-    found.forEach(({r,s})=>{const key=[r.prefecture,r.municipality,r.town,r.status].join("|");if(!groups.has(key))groups.set(key,{...r,score:s,stores:new Set(),notes:new Set(),days:new Set()});const g=groups.get(key);if(r.store)g.stores.add(r.store);if(r.note)g.notes.add(r.note.replace(/ハンター店/g,"鈴鹿ハンター店").replace(/生桑店/g,"いくわ店"));if(r.deliveryDay)g.days.add(r.deliveryDay);g.score=Math.max(g.score,s)});
+    found.forEach(({r,s})=>{const key=[r.prefecture,r.municipality,r.town,r.status].join("|");if(!groups.has(key))groups.set(key,{...r,score:s,stores:new Set(),notes:new Set(),days:new Set(),postalCodes:new Set()});const g=groups.get(key);if(r.store)g.stores.add(r.store);if(r.note)g.notes.add(r.note.replace(/ハンター店/g,"鈴鹿ハンター店").replace(/生桑店/g,"いくわ店"));if(r.deliveryDay)g.days.add(r.deliveryDay);r.postalCodes.forEach(p=>g.postalCodes.add(p));g.score=Math.max(g.score,s)});
     return [...groups.values()].sort((a,b)=>b.score-a.score||a.municipality.localeCompare(b.municipality,"ja")||a.town.localeCompare(b.town,"ja")).slice(0,30);
   }
+
+  function searchPostal(postal,selected){
+    const places=postalMaster.filter(p=>p.postalCode===postal);
+    const candidates=areas.filter(r=>r.postalCodes.includes(postal)).filter(r=>!selected||`${r.prefecture}|${r.municipality}`===selected);
+    if(!candidates.length)return [];
+    const specific=candidates.filter(r=>r.matchType!=="municipality"),chosen=specific.length?specific:candidates,groups=new Map();
+    chosen.forEach(r=>{const place=places.find(p=>p.prefecture===r.prefecture&&p.municipality===r.municipality),town=place?.town||r.town||"全域",townReading=place?.townReading||r.townReading,key=[r.prefecture,r.municipality,town,r.status].join("|");if(!groups.has(key))groups.set(key,{...r,town,townReading,score:200,stores:new Set(),notes:new Set(),days:new Set(),postalCodes:new Set([postal])});const g=groups.get(key);if(r.store)g.stores.add(r.store);if(r.note)g.notes.add(r.note.replace(/ハンター店/g,"鈴鹿ハンター店").replace(/生桑店/g,"いくわ店"));if(r.deliveryDay)g.days.add(r.deliveryDay)});
+    return [...groups.values()].slice(0,30);
+  }
+
+  const formatPostal=v=>`〒${v.slice(0,3)}-${v.slice(3)}`;
 
   function render(items){
     results.hidden=false;list.innerHTML="";count.textContent=items.length?`${items.length}件`:"該当なし";
@@ -54,7 +69,8 @@
       const confirm=x.status==="要確認",outside=x.status==="エリア外",stores=[...x.stores],notes=[...x.notes],days=[...x.days];
       const storeText=outside?"配達エリア外":confirm?(stores.length>1?stores.join(" または "):stores[0]||"担当店舗の確認が必要です"):stores.join("／")||"担当店舗未登録";
       const reading=x.townReading||(x.town?"読み仮名要確認":`${x.municipalityReading} ぜんいき`),article=document.createElement("article");article.className=`card ${outside?"outside":confirm?"confirm":"possible"}`;
-      article.innerHTML=`<div class="card-inner"><span class="badge">${outside?"配達エリア外":confirm?"店舗確認が必要":"配達可能"}</span><p class="label">${outside?"判定":"配達店舗"}</p><p class="store">${esc(storeText)}</p><p class="address-name">${esc(x.prefecture)} ${esc(x.municipality)} ${esc(x.town||"全域")}<span class="reading">（${esc(reading)}）</span></p>${days.length?`<div class="chips">${days.map(d=>`<span class="chip">${esc(d)}配達</span>`).join("")}</div>`:""}${notes.length?`<p class="note">${notes.map(esc).join("／")}</p>`:""}</div>`;
+      const codes=[...(x.postalCodes??[])],postalText=codes.length&&codes.length<=6?codes.map(formatPostal).join("／"):codes.length?"町名または郵便番号で絞り込むと表示されます":"郵便番号未登録";
+      article.innerHTML=`<div class="card-inner"><span class="badge">${outside?"配達エリア外":confirm?"店舗確認が必要":"配達可能"}</span><p class="label">${outside?"判定":"配達店舗"}</p><p class="store">${esc(storeText)}</p><p class="address-name">${esc(x.prefecture)} ${esc(x.municipality)} ${esc(x.town||"全域")}<span class="reading">（${esc(reading)}）</span></p><p class="postal-code"><span>郵便番号</span>${esc(postalText)}</p>${days.length?`<div class="chips">${days.map(d=>`<span class="chip">${esc(d)}配達</span>`).join("")}</div>`:""}${notes.length?`<p class="note">${notes.map(esc).join("／")}</p>`:""}</div>`;
       list.appendChild(article);
     });
   }
