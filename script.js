@@ -9,13 +9,14 @@
   const row=(r)=>({
     id:r.id,prefecture:String(r.prefecture??"").trim(),municipality:String(r.municipality??"").trim(),municipalityReading:String(r.municipalityReading??"").trim(),town:String(r.town??"").trim(),townReading:String(r.townReading??"").trim(),postalCodes:Array.isArray(r.postalCodes)?r.postalCodes.map(v=>String(v).replace(/\D/g,"")).filter(v=>v.length===7):String(r.postalCode??"").split(/[,、／/\s]+/).map(v=>v.replace(/\D/g,"")).filter(v=>v.length===7),store:String(r.store??"").trim(),status:String(r.status??"配達可能").trim(),deliveryDay:String(r.deliveryDay??"").trim(),matchType:String(r.matchType??"exact").trim(),note:String(r.note??"").trim(),sourceText:String(r.sourceText??"").trim(),enabled:r.enabled!==false&&String(r.enabled).toLowerCase()!=="false"
   });
+  const applyBusinessRules=r=>{if(r.municipality==="桑名市"&&r.matchType==="municipality")r.deliveryDay="";if(r.municipality==="鈴鹿市"&&r.town==="冨家")r.enabled=false;return r};
 
   async function load(){
     let source=null,url=window.DELIVERY_AREA_CONFIG?.dataUrl?.trim();
     if(url){try{const res=await fetch(`${url}${url.includes("?")?"&":"?"}v=${Date.now()}`,{cache:"no-store",redirect:"follow"});if(!res.ok)throw Error();const payload=await res.json();source=Array.isArray(payload)?payload:payload.rows}catch(e){console.warn("スプレッドシートから読み込めないため初期データを使用します。")}}
-    const fallbackRows=(window.DELIVERY_AREA_FALLBACK??[]).map(row),fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
+    const fallbackRows=(window.DELIVERY_AREA_FALLBACK??[]).map(row).map(applyBusinessRules),fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
     if(!Array.isArray(source))source=fallbackRows;
-    areas=source.map(row).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r}).filter(r=>r.enabled&&r.municipality);
+    areas=source.map(row).map(applyBusinessRules).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r}).filter(r=>r.enabled&&r.municipality);
     postalMaster=(window.POSTAL_CODE_MASTER??[]).map(p=>({...p,postalCode:String(p.postalCode??"").replace(/\D/g,"")}));
     const cities=new Map();areas.forEach(r=>cities.set(`${r.prefecture}|${r.municipality}`,`${r.prefecture} ${r.municipality}`));
     [...cities].sort((a,b)=>a[1].localeCompare(b[1],"ja")).forEach(([value,label])=>{const o=document.createElement("option");o.value=value;o.textContent=label;citySelect.appendChild(o)});
@@ -27,7 +28,7 @@
     if(selected){const [p,m]=selected.split("|");if(r.prefecture!==p||r.municipality!==m)return -1}
     if(!q)return selected&&r.matchType==="municipality"?60:-1;
     let s=selected?25:0,hasCity=q.includes(mk)||q.includes(mr)||q.includes(norm(r.municipality.replace(/^.*郡/,"")));if(hasCity)s+=35;if(q.includes(pk))s+=4;
-    if(r.matchType==="municipality")return hasCity?s+20:-1;
+    if(r.matchType==="municipality")return selected||hasCity?s+20:-1;
     if(!tk)return -1;
     if(q===full||q===short)s+=120;
     else if(q.startsWith(full)||q.startsWith(short))s+=110;
