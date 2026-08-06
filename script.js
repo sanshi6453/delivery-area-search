@@ -90,12 +90,12 @@
   }
 
   function renderCityPrompt(city){
-    results.hidden=false;count.textContent="町名を入力";list.innerHTML=`<div class="empty"><strong>${esc(city)}全域は配達エリア内ですが、</strong><p>デポが複数あるため<br>町名まで入れて再検索してください。</p></div>`;
+    results.hidden=false;count.textContent="1件";list.innerHTML=`<article class="card possible info-card"><div class="card-inner"><span class="badge">配達エリア内</span><p class="label">検索のご案内</p><p class="store">${esc(city)}全域</p><p class="info-message">配達エリア内ですが、デポが複数あるため<br><strong>町名まで入れて再検索してください。</strong></p></div></article>`;
   }
 
   function renderTsuPrompt(){
     const tsu=["産品","片田町","片田久保町","片田薬王寺町","雲出鋼管町","雲出伊倉津町","雲出長常町","雲出本郷町","雲出島貫","高茶屋小森上野町","高茶屋小森町","城山","高茶屋"],ano=["粟加","安部","河内"];
-    results.hidden=false;count.textContent="町名を入力";list.innerHTML=`<div class="empty area-guide"><strong>次の市町村はエリア外です。</strong><div class="area-block"><b>津市</b><p>${tsu.map(esc).join("・")}</p></div><div class="area-block"><b>安濃町</b><p>${ano.map(esc).join("・")}</p></div><p class="retry">町名まで入れて再検索してください。</p></div>`;
+    results.hidden=false;count.textContent="1件";list.innerHTML=`<article class="card outside info-card area-guide"><div class="card-inner"><span class="badge">一部配達エリア外</span><p class="label">配達エリアのご案内</p><p class="store">津市</p><p class="info-lead">次の市町村はエリア外です。</p><div class="area-block"><b>津市</b><p>${tsu.map(esc).join("・")}</p></div><div class="area-block"><b>安濃町</b><p>${ano.map(esc).join("・")}</p></div><p class="retry">町名まで入れて再検索してください。</p></div></article>`;
   }
 
   form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value,city=selected.split("|")[1]??"",nq=norm(q);if((!q&&city==="津市")||(!selected&&(nq===norm("津市")||nq===norm("三重県津市")))){input.removeAttribute("aria-invalid");renderTsuPrompt();return}if(!q&&["四日市市","鈴鹿市","いなべ市"].includes(city)){input.removeAttribute("aria-invalid");renderCityPrompt(city);return}if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
