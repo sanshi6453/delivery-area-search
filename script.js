@@ -21,7 +21,7 @@
     const loadedIds=new Set(areas.map(r=>String(r.id)));fallbackRows.filter(r=>!/^\d+$/.test(String(r.id))).forEach(r=>{if(!loadedIds.has(String(r.id)))areas.push(r)});areas=areas.filter(r=>r.enabled&&r.municipality);
     postalMaster=(window.POSTAL_CODE_MASTER??[]).map(p=>({...p,postalCode:String(p.postalCode??"").replace(/\D/g,"")}));
     const cities=new Map();areas.forEach(r=>cities.set(`${r.prefecture}|${r.municipality}`,{prefecture:r.prefecture,municipality:r.municipality}));
-    [...cities].sort((a,b)=>{const ap=a[1].prefecture==="三重県"?0:1,bp=b[1].prefecture==="三重県"?0:1;return ap-bp||b[1].municipality.localeCompare(a[1].municipality,"ja")}).forEach(([value,item])=>{const o=document.createElement("option");o.value=value;o.textContent=item.prefecture==="三重県"?item.municipality:`${item.prefecture} ${item.municipality}`;citySelect.appendChild(o)});
+    [...cities].sort((a,b)=>{const rank=x=>x.prefecture==="愛知県"?2:x.municipality==="伊勢市"?1:0,ap=rank(a[1]),bp=rank(b[1]);return ap-bp||b[1].municipality.localeCompare(a[1].municipality,"ja")}).forEach(([value,item])=>{const o=document.createElement("option");o.value=value;o.textContent=item.prefecture==="三重県"?item.municipality:`${item.prefecture} ${item.municipality}`;citySelect.appendChild(o)});
     button.disabled=!areas.length;status.textContent=areas.length?`${areas.length}件の配達エリア情報を読み込みました。`:"配達エリア情報を読み込めませんでした。";status.className=areas.length?"data-status ready":"data-status error";
   }
 
@@ -104,6 +104,10 @@
     results.hidden=false;count.textContent="1件";list.innerHTML=`<article class="card limited info-card area-guide"><div class="card-inner"><span class="badge">配達可能</span><p class="label">配達エリアのご案内</p><p class="store">愛知県 愛西市</p><div class="chips"><span class="chip">金曜日のみ配達</span></div><p class="info-lead">以下の町名は配達可能です。</p><div class="area-block"><p>${towns.map(esc).join("・")}</p></div><p class="retry limited-retry">町名まで入れて再検索してください。</p></div></article>`;
   }
 
-  form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value,city=selected.split("|")[1]??"",nq=norm(q);if((!q&&city==="津市")||(!selected&&(nq===norm("津市")||nq===norm("三重県津市")))){input.removeAttribute("aria-invalid");renderTsuPrompt();return}if((!q&&city==="愛西市")||(!selected&&(nq===norm("愛西市")||nq===norm("愛知県愛西市")))){input.removeAttribute("aria-invalid");renderAisaiPrompt();return}if(!q&&["四日市市","鈴鹿市","いなべ市"].includes(city)){input.removeAttribute("aria-invalid");renderCityPrompt(city);return}if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
+  function renderIsePrompt(){
+    results.hidden=false;count.textContent="1件";list.innerHTML=`<article class="card ise info-card area-guide"><div class="card-inner"><span class="badge">配達可能</span><p class="label">配達店舗</p><p class="store">ベリー小俣店</p><p class="info-lead ise-summary">二見町を除く伊勢市全域、明和町及び玉城町の一部<br>勢田・宇治浦田・中村町</p><p class="retry ise-retry">町名を入れて再検索してください。</p><details class="area-map-details"><summary>配達エリア地図を表示</summary><img class="area-map" src="ise-delivery-area.gif" alt="ベリー宅配サービス配達エリア地図"></details></div></article>`;
+  }
+
+  form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value,city=selected.split("|")[1]??"",nq=norm(q);if((!q&&city==="津市")||(!selected&&(nq===norm("津市")||nq===norm("三重県津市")))){input.removeAttribute("aria-invalid");renderTsuPrompt();return}if((!q&&city==="愛西市")||(!selected&&(nq===norm("愛西市")||nq===norm("愛知県愛西市")))){input.removeAttribute("aria-invalid");renderAisaiPrompt();return}if((!q&&city==="伊勢市")||(!selected&&(nq===norm("伊勢市")||nq===norm("三重県伊勢市")))){input.removeAttribute("aria-invalid");renderIsePrompt();return}if(!q&&["四日市市","鈴鹿市","いなべ市"].includes(city)){input.removeAttribute("aria-invalid");renderCityPrompt(city);return}if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
   load();
 })();
