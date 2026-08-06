@@ -88,6 +88,10 @@
     });
   }
 
-  form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value;if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
+  function renderCityPrompt(city){
+    results.hidden=false;count.textContent="町名を入力";list.innerHTML=`<div class="empty"><strong>${esc(city)}全域は配達エリア内ですが、</strong><p>デポが複数あるため<br>町名まで入れて再検索してください。</p></div>`;
+  }
+
+  form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value,city=selected.split("|")[1]??"";if(!q&&["四日市市","鈴鹿市","いなべ市"].includes(city)){input.removeAttribute("aria-invalid");renderCityPrompt(city);return}if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
   load();
 })();
