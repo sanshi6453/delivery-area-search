@@ -74,6 +74,7 @@
   }
 
   const formatPostal=v=>`〒${v.slice(0,3)}-${v.slice(3)}`;
+  const formatNote=v=>{const lines=String(v).split("\n").map(esc);return String(v).startsWith("愛知県津島市は")?`<strong>${lines.slice(0,2).join("<br>")}</strong>${lines[2]?`<br>${lines.slice(2).join("<br>")}`:""}`:lines.join("<br>")};
 
   function render(items){
     results.hidden=false;list.innerHTML="";count.textContent=items.length?`${items.length}件`:"該当なし";
@@ -83,7 +84,7 @@
       const storeText=outside?"配達エリア外":confirm?(stores.length>1?stores.join(" または "):stores[0]||"担当店舗の確認が必要です"):stores.join("／")||"担当店舗未登録";
       const reading=x.townReading||(x.town?"読み仮名要確認":`${x.municipalityReading} ぜんいき`),article=document.createElement("article");article.className=`card ${outside?"outside":confirm?"confirm":"possible"}`;
       const codes=[...(x.postalCodes??[])],postalText=codes.length&&codes.length<=6?codes.map(formatPostal).join("／"):codes.length?"町名または郵便番号で絞り込むと表示されます":"郵便番号未登録";
-      article.innerHTML=`<div class="card-inner"><span class="badge">${outside?"配達エリア外":confirm?"店舗確認が必要":"配達可能"}</span><p class="label">${outside?"判定":"配達店舗"}</p><p class="store">${esc(storeText)}</p><p class="address-name">${esc(x.prefecture)} ${esc(x.municipality)} ${esc(x.town||"全域")}<span class="reading">（${esc(reading)}）</span></p><p class="postal-code"><span>郵便番号</span>${esc(postalText)}</p>${days.length?`<div class="chips">${days.map(d=>`<span class="chip">${esc(d)}配達</span>`).join("")}</div>`:""}${notes.length?`<p class="note">${notes.map(esc).join("／")}</p>`:""}</div>`;
+      article.innerHTML=`<div class="card-inner"><span class="badge">${outside?"配達エリア外":confirm?"店舗確認が必要":"配達可能"}</span><p class="label">${outside?"判定":"配達店舗"}</p><p class="store">${esc(storeText)}</p><p class="address-name">${esc(x.prefecture)} ${esc(x.municipality)} ${esc(x.town||"全域")}<span class="reading">（${esc(reading)}）</span></p><p class="postal-code"><span>郵便番号</span>${esc(postalText)}</p>${days.length?`<div class="chips">${days.map(d=>`<span class="chip">${esc(d)}配達</span>`).join("")}</div>`:""}${notes.length?`<p class="note">${notes.map(formatNote).join("／")}</p>`:""}</div>`;
       list.appendChild(article);
     });
   }
@@ -92,6 +93,11 @@
     results.hidden=false;count.textContent="町名を入力";list.innerHTML=`<div class="empty"><strong>${esc(city)}全域は配達エリア内ですが、</strong><p>デポが複数あるため<br>町名まで入れて再検索してください。</p></div>`;
   }
 
-  form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value,city=selected.split("|")[1]??"";if(!q&&["四日市市","鈴鹿市","いなべ市"].includes(city)){input.removeAttribute("aria-invalid");renderCityPrompt(city);return}if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
+  function renderTsuPrompt(){
+    const tsu=["産品","片田町","片田久保町","片田薬王寺町","雲出鋼管町","雲出伊倉津町","雲出長常町","雲出本郷町","雲出島貫","高茶屋小森上野町","高茶屋小森町","城山","高茶屋"],ano=["粟加","安部","河内"];
+    results.hidden=false;count.textContent="町名を入力";list.innerHTML=`<div class="empty area-guide"><strong>次の市町村はエリア外です。</strong><div class="area-block"><b>津市</b><p>${tsu.map(esc).join("・")}</p></div><div class="area-block"><b>安濃町</b><p>${ano.map(esc).join("・")}</p></div><p class="retry">町名まで入れて再検索してください。</p></div>`;
+  }
+
+  form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value,city=selected.split("|")[1]??"",nq=norm(q);if((!q&&city==="津市")||(!selected&&(nq===norm("津市")||nq===norm("三重県津市")))){input.removeAttribute("aria-invalid");renderTsuPrompt();return}if(!q&&["四日市市","鈴鹿市","いなべ市"].includes(city)){input.removeAttribute("aria-invalid");renderCityPrompt(city);return}if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
   load();
 })();
