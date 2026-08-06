@@ -49,6 +49,7 @@
     if(postal.length===7)return searchPostal(postal,selected);
     const place=identifyPlace(query,selected);
     let found=areas.map(r=>({r,s:score(r,query,selected)})).filter(x=>x.s>=0);
+    if(place)found=found.filter(x=>x.r.prefecture===place.prefecture&&x.r.municipality===place.municipality);
     const q=norm(query),exactMunicipalities=new Set(found.filter(x=>x.r.matchType==="municipality"&&(q===norm(x.r.municipality)||q===norm(x.r.prefecture+x.r.municipality))).map(x=>`${x.r.prefecture}|${x.r.municipality}`));
     if(exactMunicipalities.size)found=found.filter(x=>exactMunicipalities.has(`${x.r.prefecture}|${x.r.municipality}`));
     const specific=new Set(found.filter(x=>x.r.matchType!=="municipality").map(x=>`${x.r.prefecture}|${x.r.municipality}`));
@@ -82,7 +83,7 @@
     items.forEach(x=>{
       const confirm=x.status==="要確認",outside=x.status==="エリア外",stores=[...x.stores],notes=[...x.notes],days=[...x.days];
       const storeText=outside?"配達エリア外":confirm?(stores.length>1?stores.join(" または "):stores[0]||"担当店舗の確認が必要です"):stores.join("／")||"担当店舗未登録";
-      const reading=x.townReading||(x.town?"読み仮名要確認":`${x.municipalityReading} ぜんいき`),article=document.createElement("article");article.className=`card ${outside?"outside":confirm?"confirm":"possible"}`;
+      const reading=x.townReading||(x.town?"読み仮名要確認":`${x.municipalityReading} ぜんいき`),article=document.createElement("article");article.className=`card ${outside?"outside":confirm?"confirm":days.length?"limited":"possible"}`;
       const codes=[...(x.postalCodes??[])],postalText=codes.length&&codes.length<=6?codes.map(formatPostal).join("／"):codes.length?"町名または郵便番号で絞り込むと表示されます":"郵便番号未登録";
       article.innerHTML=`<div class="card-inner"><span class="badge">${outside?"配達エリア外":confirm?"店舗確認が必要":"配達可能"}</span><p class="label">${outside?"判定":"配達店舗"}</p><p class="store">${esc(storeText)}</p><p class="address-name">${esc(x.prefecture)} ${esc(x.municipality)} ${esc(x.town||"全域")}<span class="reading">（${esc(reading)}）</span></p><p class="postal-code"><span>郵便番号</span>${esc(postalText)}</p>${days.length?`<div class="chips">${days.map(d=>`<span class="chip">${esc(d)}配達</span>`).join("")}</div>`:""}${notes.length?`<p class="note">${notes.map(formatNote).join("／")}</p>`:""}</div>`;
       list.appendChild(article);
@@ -90,7 +91,7 @@
   }
 
   function renderCityPrompt(city){
-    results.hidden=false;count.textContent="1件";list.innerHTML=`<article class="card possible info-card"><div class="card-inner"><span class="badge">配達エリア内</span><p class="label">検索のご案内</p><p class="store">${esc(city)}全域</p><p class="info-message">配達エリア内ですが、デポが複数あるため<br><strong>町名まで入れて再検索してください。</strong></p></div></article>`;
+    results.hidden=false;count.textContent="1件";list.innerHTML=`<article class="card possible info-card"><div class="card-inner"><span class="badge">配達可能</span><p class="label">検索のご案内</p><p class="store">${esc(city)}全域</p><p class="info-message">配達エリア内ですが、デポが複数あるため<br><strong>町名まで入れて再検索してください。</strong></p></div></article>`;
   }
 
   function renderTsuPrompt(){
@@ -98,6 +99,11 @@
     results.hidden=false;count.textContent="1件";list.innerHTML=`<article class="card outside info-card area-guide"><div class="card-inner"><span class="badge">一部配達エリア外</span><p class="label">配達エリアのご案内</p><p class="store">津市</p><p class="info-lead">次の市町村はエリア外です。</p><div class="area-block"><b>津市</b><p>${tsu.map(esc).join("・")}</p></div><div class="area-block"><b>安濃町</b><p>${ano.map(esc).join("・")}</p></div><p class="retry">町名まで入れて再検索してください。</p></div></article>`;
   }
 
-  form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value,city=selected.split("|")[1]??"",nq=norm(q);if((!q&&city==="津市")||(!selected&&(nq===norm("津市")||nq===norm("三重県津市")))){input.removeAttribute("aria-invalid");renderTsuPrompt();return}if(!q&&["四日市市","鈴鹿市","いなべ市"].includes(city)){input.removeAttribute("aria-invalid");renderCityPrompt(city);return}if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
+  function renderAisaiPrompt(){
+    const towns=["佐屋町","須衣町","内佐屋町","柚木町","北一色町","日置町","稲葉町","甘村井町","落合町","西保町","東保町","西條町","東條町","本部田町","大井町","大野町","鰯江町","善太新田町","早尾町","葛木町","戸倉町","新右エ門新田町","下一色町","四会町","宮地町","石田町","後江町","省ヶ森町","山路町","森川町","小茂井町","三和町","立田町","福原新田町"];
+    results.hidden=false;count.textContent="1件";list.innerHTML=`<article class="card limited info-card area-guide"><div class="card-inner"><span class="badge">配達可能</span><p class="label">配達エリアのご案内</p><p class="store">愛知県 愛西市</p><div class="chips"><span class="chip">金曜日のみ配達</span></div><p class="info-lead">以下の町名は配達可能です。</p><div class="area-block"><p>${towns.map(esc).join("・")}</p></div><p class="retry limited-retry">町名まで入れて再検索してください。</p></div></article>`;
+  }
+
+  form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value,city=selected.split("|")[1]??"",nq=norm(q);if((!q&&city==="津市")||(!selected&&(nq===norm("津市")||nq===norm("三重県津市")))){input.removeAttribute("aria-invalid");renderTsuPrompt();return}if((!q&&city==="愛西市")||(!selected&&(nq===norm("愛西市")||nq===norm("愛知県愛西市")))){input.removeAttribute("aria-invalid");renderAisaiPrompt();return}if(!q&&["四日市市","鈴鹿市","いなべ市"].includes(city)){input.removeAttribute("aria-invalid");renderCityPrompt(city);return}if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
   load();
 })();
