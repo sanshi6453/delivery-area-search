@@ -9,7 +9,7 @@
   const row=(r)=>({
     id:r.id,prefecture:String(r.prefecture??"").trim(),municipality:String(r.municipality??"").trim(),municipalityReading:String(r.municipalityReading??"").trim(),town:String(r.town??"").trim(),townReading:String(r.townReading??"").trim(),postalCodes:Array.isArray(r.postalCodes)?r.postalCodes.map(v=>String(v).replace(/\D/g,"")).filter(v=>v.length===7):String(r.postalCode??"").split(/[,、／/\s]+/).map(v=>v.replace(/\D/g,"")).filter(v=>v.length===7),store:String(r.store??"").trim(),status:String(r.status??"配達可能").trim(),deliveryDay:String(r.deliveryDay??"").trim(),matchType:String(r.matchType??"exact").trim(),note:String(r.note??"").trim(),sourceText:String(r.sourceText??"").trim(),enabled:r.enabled!==false&&String(r.enabled).toLowerCase()!=="false"
   });
-  const applyBusinessRules=r=>{if(r.store==="桑名店"&&["桑名市","いなべ市","員弁郡東員町"].includes(r.municipality))r.deliveryDay="";if(r.municipality==="鈴鹿市"&&r.town==="冨家")r.enabled=false;return r};
+  const applyBusinessRules=r=>{if(r.store==="桑名店"&&["桑名市","いなべ市","員弁郡東員町","桑名郡木曽岬町"].includes(r.municipality))r.deliveryDay="";if(r.store==="桑名店"&&["海部郡蟹江町","海部郡飛島村","弥富市"].includes(r.municipality))r.deliveryDay="水曜日のみ";if(r.store==="桑名店"&&["愛西市","津島市"].includes(r.municipality))r.deliveryDay="金曜日のみ";if(r.municipality==="鈴鹿市"&&r.town==="冨家")r.enabled=false;return r};
 
   async function load(){
     let source=null,url=window.DELIVERY_AREA_CONFIG?.dataUrl?.trim();
@@ -18,7 +18,7 @@
     const fallbackRows=[...(window.DELIVERY_AREA_FALLBACK??[]).map(row).map(applyBusinessRules),...extraRules],fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
     if(!Array.isArray(source))source=fallbackRows;
     areas=source.map(row).map(applyBusinessRules).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r});
-    const loadedIds=new Set(areas.map(r=>String(r.id)));extraRules.forEach(r=>{if(!loadedIds.has(String(r.id)))areas.push(r)});areas=areas.filter(r=>r.enabled&&r.municipality);
+    const loadedIds=new Set(areas.map(r=>String(r.id)));fallbackRows.filter(r=>!/^\d+$/.test(String(r.id))).forEach(r=>{if(!loadedIds.has(String(r.id)))areas.push(r)});areas=areas.filter(r=>r.enabled&&r.municipality);
     postalMaster=(window.POSTAL_CODE_MASTER??[]).map(p=>({...p,postalCode:String(p.postalCode??"").replace(/\D/g,"")}));
     const cities=new Map();areas.forEach(r=>cities.set(`${r.prefecture}|${r.municipality}`,{prefecture:r.prefecture,municipality:r.municipality}));
     [...cities].sort((a,b)=>{const ap=a[1].prefecture==="三重県"?0:1,bp=b[1].prefecture==="三重県"?0:1;return ap-bp||b[1].municipality.localeCompare(a[1].municipality,"ja")}).forEach(([value,item])=>{const o=document.createElement("option");o.value=value;o.textContent=item.prefecture==="三重県"?item.municipality:`${item.prefecture} ${item.municipality}`;citySelect.appendChild(o)});
@@ -69,7 +69,7 @@
     const candidates=areas.filter(r=>r.postalCodes.includes(postal)).filter(r=>!selected||`${r.prefecture}|${r.municipality}`===selected);
     if(!candidates.length)return [];
     const specific=candidates.filter(r=>r.matchType!=="municipality"),chosen=specific.length?specific:candidates,groups=new Map();
-    chosen.forEach(r=>{const place=places.find(p=>p.prefecture===r.prefecture&&p.municipality===r.municipality),town=place?.town||r.town||"全域",townReading=place?.townReading||r.townReading,key=[r.prefecture,r.municipality,town,r.status].join("|");if(!groups.has(key))groups.set(key,{...r,town,townReading,score:200,stores:new Set(),notes:new Set(),days:new Set(),postalCodes:new Set([postal])});const g=groups.get(key);if(r.store)g.stores.add(r.store);if(r.note)g.notes.add(r.note.replace(/ハンター店/g,"鈴鹿ハンター店").replace(/生桑店/g,"いくわ店"));if(r.deliveryDay)g.days.add(r.deliveryDay)});
+    chosen.forEach(r=>{const place=places.find(p=>p.prefecture===r.prefecture&&p.municipality===r.municipality),town=place?.town||r.town||"全域",townReading=hira(place?.townReading||r.townReading),key=[r.prefecture,r.municipality,town,r.status].join("|");if(!groups.has(key))groups.set(key,{...r,town,townReading,score:200,stores:new Set(),notes:new Set(),days:new Set(),postalCodes:new Set([postal])});const g=groups.get(key);if(r.store)g.stores.add(r.store);if(r.note)g.notes.add(r.note.replace(/ハンター店/g,"鈴鹿ハンター店").replace(/生桑店/g,"いくわ店"));if(r.deliveryDay)g.days.add(r.deliveryDay)});
     return [...groups.values()].slice(0,30);
   }
 
