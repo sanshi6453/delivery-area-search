@@ -56,7 +56,9 @@
     found=found.filter(x=>x.r.matchType!=="municipality"||!specific.has(`${x.r.prefecture}|${x.r.municipality}`));
     const groups=new Map();
     found.forEach(({r,s})=>{const key=[r.prefecture,r.municipality,r.town,r.status].join("|");if(!groups.has(key))groups.set(key,{...r,score:s,stores:new Set(),notes:new Set(),days:new Set(),postalCodes:new Set()});const g=groups.get(key);if(r.store)g.stores.add(r.store);if(r.note)g.notes.add(r.note.replace(/ハンター店/g,"鈴鹿ハンター店").replace(/生桑店/g,"いくわ店"));if(r.deliveryDay)g.days.add(r.deliveryDay);r.postalCodes.forEach(p=>g.postalCodes.add(p));g.score=Math.max(g.score,s)});
-    return [...groups.values()].map(g=>{if(place&&g.prefecture===place.prefecture&&g.municipality===place.municipality){g.town=place.town;g.townReading=hira(place.townReading);g.postalCodes=new Set(postalMaster.filter(p=>p.prefecture===place.prefecture&&p.municipality===place.municipality&&p.town===place.town).map(p=>p.postalCode))}return g}).sort((a,b)=>b.score-a.score||a.municipality.localeCompare(b.municipality,"ja")||a.town.localeCompare(b.town,"ja")).slice(0,30);
+    const displayed=[...groups.values()].map(g=>{if(place&&g.prefecture===place.prefecture&&g.municipality===place.municipality){g.town=place.town;g.townReading=hira(place.townReading);g.postalCodes=new Set(postalMaster.filter(p=>p.prefecture===place.prefecture&&p.municipality===place.municipality&&p.town===place.town).map(p=>p.postalCode))}return g}),unique=new Map();
+    displayed.forEach(g=>{const key=[g.prefecture,g.municipality,g.town,g.status].join("|");if(!unique.has(key)){unique.set(key,g);return}const u=unique.get(key);g.stores.forEach(v=>u.stores.add(v));g.notes.forEach(v=>u.notes.add(v));g.days.forEach(v=>u.days.add(v));g.postalCodes.forEach(v=>u.postalCodes.add(v));u.score=Math.max(u.score,g.score)});
+    return [...unique.values()].sort((a,b)=>b.score-a.score||a.municipality.localeCompare(b.municipality,"ja")||a.town.localeCompare(b.town,"ja")).slice(0,30);
   }
 
   function identifyPlace(query,selected){
