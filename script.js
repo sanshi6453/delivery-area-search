@@ -14,7 +14,10 @@
   async function load(){
     let source=null,url=window.DELIVERY_AREA_CONFIG?.dataUrl?.trim();
     if(url){try{const res=await fetch(`${url}${url.includes("?")?"&":"?"}v=${Date.now()}`,{cache:"no-store",redirect:"follow"});if(!res.ok)throw Error();const payload=await res.json();source=Array.isArray(payload)?payload:payload.rows}catch(e){console.warn("スプレッドシートから読み込めないため初期データを使用します。")}}
-    const extraRules=[row({id:"aichi-amagun",prefecture:"愛知県",municipality:"海部郡",municipalityReading:"あまぐん",town:"",townReading:"",postalCodes:[],store:"桑名店",status:"配達可能",deliveryDay:"水曜日のみ",matchType:"municipality",note:"",enabled:true,sourceText:"愛知県海部郡"})];
+    const extraRules=[
+      row({id:"aichi-amagun",prefecture:"愛知県",municipality:"海部郡",municipalityReading:"あまぐん",town:"",townReading:"",postalCodes:[],store:"桑名店",status:"配達可能",deliveryDay:"水曜日のみ",matchType:"municipality",note:"",enabled:true,sourceText:"愛知県海部郡"}),
+      row({id:"tsu-citywide",prefecture:"三重県",municipality:"津市",municipalityReading:"つし",town:"",townReading:"",postalCodes:(window.POSTAL_CODE_MASTER??[]).filter(p=>p.prefecture==="三重県"&&p.municipality==="津市").map(p=>p.postalCode),store:"亀山エコー店",status:"配達可能",deliveryDay:"",matchType:"municipality",note:"",enabled:true,sourceText:"津市全域（指定エリア外を除く）"})
+    ];
     const fallbackRows=[...(window.DELIVERY_AREA_FALLBACK??[]).map(row).map(applyBusinessRules),...extraRules],fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
     if(!Array.isArray(source))source=fallbackRows;
     areas=source.map(row).map(applyBusinessRules).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r});
