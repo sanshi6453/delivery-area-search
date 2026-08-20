@@ -17,8 +17,13 @@
     const extraRules=[
       row({id:"aichi-amagun",prefecture:"愛知県",municipality:"海部郡",municipalityReading:"あまぐん",town:"",townReading:"",postalCodes:[],store:"桑名店",status:"配達可能",deliveryDay:"水曜日のみ",matchType:"municipality",note:"",enabled:true,sourceText:"愛知県海部郡"}),
       row({id:"tsu-citywide",prefecture:"三重県",municipality:"津市",municipalityReading:"つし",town:"",townReading:"",postalCodes:(window.POSTAL_CODE_MASTER??[]).filter(p=>p.prefecture==="三重県"&&p.municipality==="津市").map(p=>p.postalCode),store:"河芸店",status:"配達可能",deliveryDay:"",matchType:"municipality",note:"",enabled:true,sourceText:"津市全域（亀山エコー店対象地域・指定エリア外を除く）"})
+      ,row({id:"tsu-isshinden",prefecture:"三重県",municipality:"津市",municipalityReading:"つし",town:"一身田",townReading:"いっしんでん",postalCodes:(window.POSTAL_CODE_MASTER??[]).filter(p=>p.prefecture==="三重県"&&p.municipality==="津市"&&String(p.town??"").startsWith("一身田")).map(p=>p.postalCode),store:"河芸店",status:"配達可能",deliveryDay:"",matchType:"prefix",note:"",enabled:true,sourceText:"一身田"})
     ];
-    const fallbackRows=[...(window.DELIVERY_AREA_FALLBACK??[]).map(row).map(applyBusinessRules),...extraRules],fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
+    const fallbackRows=[...(window.DELIVERY_AREA_FALLBACK??[]).map(row).map(applyBusinessRules),...extraRules];
+    const knownTsu=fallbackRows.filter(r=>r.prefecture==="三重県"&&r.municipality==="津市"&&r.town),tsuPostalTowns=new Map();
+    (window.POSTAL_CODE_MASTER??[]).filter(p=>p.prefecture==="三重県"&&p.municipality==="津市").forEach(p=>{if(!tsuPostalTowns.has(p.town))tsuPostalTowns.set(p.town,{...p,postalCodes:[]});tsuPostalTowns.get(p.town).postalCodes.push(p.postalCode)});
+    tsuPostalTowns.forEach(p=>{if(knownTsu.some(r=>r.matchType==="exact"?norm(r.town)===norm(p.town):r.matchType==="prefix"&&norm(p.town).startsWith(norm(r.town))))return;fallbackRows.push(row({id:`tsu-postal-${p.postalCodes[0]}`,prefecture:"三重県",municipality:"津市",municipalityReading:"つし",town:p.town,townReading:hira(p.townReading),postalCodes:p.postalCodes,store:"河芸店",status:"配達可能",deliveryDay:"",matchType:"exact",note:"",enabled:true,sourceText:p.town}))});
+    const fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
     if(!Array.isArray(source))source=fallbackRows;
     areas=source.map(row).map(applyBusinessRules).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r});
     const loadedIds=new Set(areas.map(r=>String(r.id)));fallbackRows.filter(r=>!/^\d+$/.test(String(r.id))).forEach(r=>{if(!loadedIds.has(String(r.id)))areas.push(r)});areas=areas.filter(r=>r.enabled&&r.municipality);
@@ -55,6 +60,7 @@
     if(place)found=found.filter(x=>x.r.prefecture===place.prefecture&&x.r.municipality===place.municipality);
     const q=norm(query),exactMunicipalities=new Set(found.filter(x=>x.r.matchType==="municipality"&&(q===norm(x.r.municipality)||q===norm(x.r.prefecture+x.r.municipality))).map(x=>`${x.r.prefecture}|${x.r.municipality}`));
     if(exactMunicipalities.size)found=found.filter(x=>exactMunicipalities.has(`${x.r.prefecture}|${x.r.municipality}`));
+    if(!selected){const exactTown=found.filter(x=>q===norm(x.r.town)||q===norm(x.r.townReading)||q===norm(x.r.sourceText));if(exactTown.length)found=exactTown}
     const specific=new Set(found.filter(x=>x.r.matchType!=="municipality").map(x=>`${x.r.prefecture}|${x.r.municipality}`));
     found=found.filter(x=>x.r.matchType!=="municipality"||!specific.has(`${x.r.prefecture}|${x.r.municipality}`));
     const groups=new Map();
