@@ -20,9 +20,9 @@
       ,row({id:"tsu-isshinden",prefecture:"三重県",municipality:"津市",municipalityReading:"つし",town:"一身田",townReading:"いっしんでん",postalCodes:(window.POSTAL_CODE_MASTER??[]).filter(p=>p.prefecture==="三重県"&&p.municipality==="津市"&&String(p.town??"").startsWith("一身田")).map(p=>p.postalCode),store:"河芸店",status:"配達可能",deliveryDay:"",matchType:"prefix",note:"",enabled:true,sourceText:"一身田"})
     ];
     const fallbackRows=[...(window.DELIVERY_AREA_FALLBACK??[]).map(row).map(applyBusinessRules),...extraRules];
-    const knownTsu=fallbackRows.filter(r=>r.prefecture==="三重県"&&r.municipality==="津市"&&r.town),tsuPostalTowns=new Map();
-    (window.POSTAL_CODE_MASTER??[]).filter(p=>p.prefecture==="三重県"&&p.municipality==="津市").forEach(p=>{if(!tsuPostalTowns.has(p.town))tsuPostalTowns.set(p.town,{...p,postalCodes:[]});tsuPostalTowns.get(p.town).postalCodes.push(p.postalCode)});
-    tsuPostalTowns.forEach(p=>{if(knownTsu.some(r=>r.matchType==="exact"?norm(r.town)===norm(p.town):r.matchType==="prefix"&&norm(p.town).startsWith(norm(r.town))))return;fallbackRows.push(row({id:`tsu-postal-${p.postalCodes[0]}`,prefecture:"三重県",municipality:"津市",municipalityReading:"つし",town:p.town,townReading:hira(p.townReading),postalCodes:p.postalCodes,store:"河芸店",status:"配達可能",deliveryDay:"",matchType:"exact",note:"",enabled:true,sourceText:p.town}))});
+    const municipalityDefaults=fallbackRows.filter(r=>r.matchType==="municipality"),knownSpecific=fallbackRows.filter(r=>r.town),postalTowns=new Map();
+    (window.POSTAL_CODE_MASTER??[]).forEach(p=>{const key=[p.prefecture,p.municipality,p.town].join("|");if(!postalTowns.has(key))postalTowns.set(key,{...p,postalCodes:[]});postalTowns.get(key).postalCodes.push(p.postalCode)});
+    postalTowns.forEach(p=>{const base=municipalityDefaults.find(r=>r.prefecture===p.prefecture&&r.municipality===p.municipality);if(!base)return;const covered=knownSpecific.some(r=>r.prefecture===p.prefecture&&r.municipality===p.municipality&&(r.matchType==="exact"?norm(r.town)===norm(p.town):r.matchType==="prefix"&&norm(p.town).startsWith(norm(r.town))));if(covered)return;fallbackRows.push(row({...base,id:`postal-area-${p.postalCodes[0]}`,town:p.town,townReading:hira(p.townReading),postalCodes:p.postalCodes,matchType:"exact",sourceText:p.town}))});
     const fallbackById=new Map(fallbackRows.map(r=>[String(r.id),r]));
     if(!Array.isArray(source))source=fallbackRows;
     areas=source.map(row).map(applyBusinessRules).map(r=>{const base=fallbackById.get(String(r.id));if(!r.postalCodes.length&&base?.postalCodes.length)r.postalCodes=base.postalCodes;return r});
@@ -45,7 +45,7 @@
     else if(q.startsWith(full)||q.startsWith(short))s+=110;
     else if(q===tk||q===tr||q===sk)s+=100;
     else if(q.startsWith(tk)||q.startsWith(tr)||q.startsWith(sk))s+=92;
-    else if(q.includes(tk)||q.includes(tr)||q.includes(sk))s+=86;
+    else if((selected||hasCity)&&(q.includes(tk)||q.includes(tr)||q.includes(sk)))s+=86;
     else if(tk.startsWith(q)||tr.startsWith(q)||sk.startsWith(q))s+=70;
     else if(tk.includes(q)||tr.includes(q)||sk.includes(q)||read.startsWith(q))s+=55;
     else return -1;
@@ -58,6 +58,7 @@
     const place=identifyPlace(query,selected);
     let found=areas.map(r=>({r,s:score(r,query,selected)})).filter(x=>x.s>=0);
     if(place)found=found.filter(x=>x.r.prefecture===place.prefecture&&x.r.municipality===place.municipality);
+    if(place){const placeSpecific=found.filter(x=>x.r.matchType==="exact"?norm(x.r.town)===norm(place.town):x.r.matchType==="prefix"&&norm(place.town).startsWith(norm(x.r.town)));if(placeSpecific.length)found=placeSpecific}
     const q=norm(query),exactMunicipalities=new Set(found.filter(x=>x.r.matchType==="municipality"&&(q===norm(x.r.municipality)||q===norm(x.r.prefecture+x.r.municipality))).map(x=>`${x.r.prefecture}|${x.r.municipality}`));
     if(exactMunicipalities.size)found=found.filter(x=>exactMunicipalities.has(`${x.r.prefecture}|${x.r.municipality}`));
     if(!selected){const exactTown=found.filter(x=>q===norm(x.r.town)||q===norm(x.r.townReading)||q===norm(x.r.sourceText));if(exactTown.length)found=exactTown}
@@ -65,7 +66,9 @@
     found=found.filter(x=>x.r.matchType!=="municipality"||!specific.has(`${x.r.prefecture}|${x.r.municipality}`));
     const groups=new Map();
     found.forEach(({r,s})=>{const key=[r.prefecture,r.municipality,r.town,r.status].join("|");if(!groups.has(key))groups.set(key,{...r,score:s,stores:new Set(),notes:new Set(),days:new Set(),postalCodes:new Set()});const g=groups.get(key);if(r.store)g.stores.add(r.store);if(r.note)g.notes.add(r.note.replace(/ハンター店/g,"鈴鹿ハンター店").replace(/生桑店/g,"いくわ店"));if(r.deliveryDay)g.days.add(r.deliveryDay);r.postalCodes.forEach(p=>g.postalCodes.add(p));g.score=Math.max(g.score,s)});
-    const displayed=[...groups.values()].map(g=>{if(place&&g.prefecture===place.prefecture&&g.municipality===place.municipality){g.town=place.town;g.townReading=hira(place.townReading);g.postalCodes=new Set(postalMaster.filter(p=>p.prefecture===place.prefecture&&p.municipality===place.municipality&&p.town===place.town).map(p=>p.postalCode))}return g}),unique=new Map();
+    let displayed=[...groups.values()].map(g=>{if(place&&g.prefecture===place.prefecture&&g.municipality===place.municipality){g.town=place.town;g.townReading=hira(place.townReading);g.postalCodes=new Set(postalMaster.filter(p=>p.prefecture===place.prefecture&&p.municipality===place.municipality&&p.town===place.town).map(p=>p.postalCode))}return g});
+    const displayedSpecific=new Set(displayed.filter(g=>g.matchType!=="municipality").map(g=>[g.prefecture,g.municipality,g.town].join("|")));displayed=displayed.filter(g=>g.matchType!=="municipality"||!displayedSpecific.has([g.prefecture,g.municipality,g.town].join("|")));
+    const unique=new Map();
     displayed.forEach(g=>{const key=[g.prefecture,g.municipality,g.town,g.status].join("|");if(!unique.has(key)){unique.set(key,g);return}const u=unique.get(key);g.stores.forEach(v=>u.stores.add(v));g.notes.forEach(v=>u.notes.add(v));g.days.forEach(v=>u.days.add(v));g.postalCodes.forEach(v=>u.postalCodes.add(v));u.score=Math.max(u.score,g.score)});
     return [...unique.values()].sort((a,b)=>b.score-a.score||a.municipality.localeCompare(b.municipality,"ja")||a.town.localeCompare(b.town,"ja")).slice(0,30);
   }
