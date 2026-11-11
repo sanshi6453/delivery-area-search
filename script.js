@@ -16,7 +16,8 @@
     if(url){try{const res=await fetch(`${url}${url.includes("?")?"&":"?"}v=${Date.now()}`,{cache:"no-store",redirect:"follow"});if(!res.ok)throw Error();const payload=await res.json();source=Array.isArray(payload)?payload:payload.rows}catch(e){console.warn("スプレッドシートから読み込めないため初期データを使用します。")}}
     const extraRules=[
       row({id:"aichi-amagun",prefecture:"愛知県",municipality:"海部郡",municipalityReading:"あまぐん",town:"",townReading:"",postalCodes:[],store:"桑名店",status:"配達可能",deliveryDay:"水曜日のみ",matchType:"municipality",note:"",enabled:true,sourceText:"愛知県海部郡"}),
-      row({id:"tsu-citywide",prefecture:"三重県",municipality:"津市",municipalityReading:"つし",town:"",townReading:"",postalCodes:(window.POSTAL_CODE_MASTER??[]).filter(p=>p.prefecture==="三重県"&&p.municipality==="津市").map(p=>p.postalCode),store:"河芸店",status:"配達可能",deliveryDay:"",matchType:"municipality",note:"",enabled:true,sourceText:"津市全域（亀山エコー店対象地域・指定エリア外を除く）"})
+      row({id:"tsu-citywide",prefecture:"三重県",municipality:"津市",municipalityReading:"つし",town:"",townReading:"",postalCodes:(window.POSTAL_CODE_MASTER??[]).filter(p=>p.prefecture==="三重県"&&p.municipality==="津市").map(p=>p.postalCode),store:"河芸店",status:"配達可能",deliveryDay:"",matchType:"municipality",note:"",enabled:true,sourceText:"津市全域（亀山エコー店対象地域・指定エリア外を除く）"}),
+      row({id:"yokkaichi-hazu-subdistricts",prefecture:"三重県",municipality:"四日市市",municipalityReading:"よっかいちし",town:"羽津",townReading:"はづ",postalCodes:["5100012"],store:"いくわ店",status:"配達可能",deliveryDay:"",matchType:"exact",note:"",enabled:true,sourceText:"大字羽津（羽津甲・羽津乙・羽津丙・羽津丁・羽津戊）"})
       ,row({id:"tsu-isshinden",prefecture:"三重県",municipality:"津市",municipalityReading:"つし",town:"一身田",townReading:"いっしんでん",postalCodes:(window.POSTAL_CODE_MASTER??[]).filter(p=>p.prefecture==="三重県"&&p.municipality==="津市"&&String(p.town??"").startsWith("一身田")).map(p=>p.postalCode),store:"河芸店",status:"配達可能",deliveryDay:"",matchType:"prefix",note:"",enabled:true,sourceText:"一身田"})
     ];
     const fallbackRows=[...(window.DELIVERY_AREA_FALLBACK??[]).map(row).map(applyBusinessRules),...extraRules];
@@ -125,3 +126,4 @@
   form.addEventListener("submit",e=>{e.preventDefault();const q=input.value.trim(),selected=citySelect.value,city=selected.split("|")[1]??"",nq=norm(q);if((!q&&city==="津市")||(!selected&&(nq===norm("津市")||nq===norm("三重県津市")))){input.removeAttribute("aria-invalid");renderTsuPrompt();return}if((!q&&city==="愛西市")||(!selected&&(nq===norm("愛西市")||nq===norm("愛知県愛西市")))){input.removeAttribute("aria-invalid");renderAisaiPrompt();return}if((!q&&city==="伊勢市")||(!selected&&(nq===norm("伊勢市")||nq===norm("三重県伊勢市")))){input.removeAttribute("aria-invalid");renderIsePrompt();return}if(!q&&["四日市市","鈴鹿市","いなべ市"].includes(city)){input.removeAttribute("aria-invalid");renderCityPrompt(city);return}if(!q&&!selected){input.focus();input.setAttribute("aria-invalid","true");render([]);return}input.removeAttribute("aria-invalid");render(search(q,selected))});
   load();
 })();
+
