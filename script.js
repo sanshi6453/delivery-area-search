@@ -42,7 +42,10 @@
     let s=selected?25:0,hasCity=q.includes(mk)||q.includes(mr)||(shortMunicipality&&q.includes(norm(shortMunicipality)))||(district&&q.includes(norm(district)));if(hasCity)s+=35;if(q.includes(pk))s+=4;
     if(r.matchType==="municipality")return selected||hasCity?s+20:-1;
     if(!tk)return -1;
-    if(q===full||q===short)s+=120;
+    const hazuAlias=["羽津甲","羽津乙","羽津丙","羽津丁","羽津戊"].find(name=>q.includes(norm(name)));
+    const hazuAliasMatch=!!hazuAlias&&r.prefecture==="三重県"&&r.municipality==="四日市市"&&norm(r.town)===norm("羽津");
+    if(hazuAliasMatch)s+=120;
+    else if(q===full||q===short)s+=120;
     else if(q.startsWith(full)||q.startsWith(short))s+=110;
     else if(q===tk||q===tr||q===sk)s+=100;
     else if(q.startsWith(tk)||q.startsWith(tr)||q.startsWith(sk))s+=92;
